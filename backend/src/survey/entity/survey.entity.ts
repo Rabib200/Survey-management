@@ -32,6 +32,13 @@ export class Survey {
   @Column({ default: true })
   isActive: boolean;
 
+  @ManyToOne(() => User)
+  @JoinColumn({ name: 'created_by' })
+  createdBy: User;
+
+  @Column({ name: 'created_by' })
+  createdById: string;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

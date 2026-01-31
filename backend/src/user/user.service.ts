@@ -5,12 +5,15 @@ import { User } from './entity/user.entity';
 import { CreateUserDto } from './dto/createUser.dto';
 import { LoginDto } from './dto/login.dto';
 import * as bcrypt from 'bcrypt';
+import { UserRole } from 'libs/common/src/enums/user.roles.enum';
+import { AdminJwtService } from 'src/auth/admin-jwt.service';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly adminJwtService: AdminJwtService,
   ) {}
 
   async getUserInfo(userId: string) {
@@ -26,48 +29,88 @@ export class UserService {
   }
 
   async createOfficer(createUserDto: CreateUserDto) {
-    const isEmailExists = await this.userRepository.findOne({
+    const existingUser = await this.userRepository.findOne({
       where: {
         email: createUserDto.email,
       },
     });
 
-    if (isEmailExists) {
+    if (existingUser) {
       throw new BadRequestException('Email already exists');
     }
 
-    const passEncrypted = await bcrypt.hash(createUserDto.password, 10);
+    if (createUserDto.password !== createUserDto.confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
 
-    createUserDto.password = passEncrypted;
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const newUser = this.userRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+      role: UserRole.OFFICER,
+    });
 
-    await this.userRepository.create(createUserDto);
-    return await this.userRepository.save(createUserDto);
+    return await this.userRepository.save(newUser);
   }
 
   async login(loginDto: LoginDto) {
-    const userEmail = await this.userRepository.findOne({
+    const user = await this.userRepository.findOne({
       where: {
         email: loginDto.email,
       },
     });
 
-    if (!userEmail) {
-      throw new BadRequestException('User not found');
+    if (!user) {
+      throw new BadRequestException('Invalid credentials');
     }
 
-    if (userEmail.password != bcrypt.hash(loginDto.password, 10)) {
-      throw new BadRequestException('Invalid password');
+    const isPasswordValid = await bcrypt.compare(
+      loginDto.password,
+      user.password,
+    );
+
+    if (!isPasswordValid) {
+      throw new BadRequestException('Invalid credentials');
     }
 
-    return userEmail;
+    const access_token = this.adminJwtService.sign(user);
+    const { password, ...userWithoutPassword } = user;
+
+    return {
+      access_token,
+      user: userWithoutPassword,
+    };
   }
-
-  //!-------Admin Services--------!
 
   async getAllUUsers(page: number = 1, limit: number = 10) {
     return await this.userRepository.findAndCount({
       skip: (page - 1) * limit,
       take: limit,
     });
+  }
+
+  async createAdmin(createUserDto: CreateUserDto) {
+    const existingUser = await this.userRepository.findOne({
+      where: {
+        email: createUserDto.email,
+      },
+    });
+
+    if (existingUser) {
+      throw new BadRequestException('Email already exists');
+    }
+
+    if (createUserDto.password !== createUserDto.confirmPassword) {
+      throw new BadRequestException('Passwords do not match');
+    }
+
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+    const newUser = this.userRepository.create({
+      ...createUserDto,
+      password: hashedPassword,
+      role: UserRole.ADMIN,
+    });
+
+    return await this.userRepository.save(newUser);
   }
 }

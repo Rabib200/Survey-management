@@ -7,12 +7,14 @@ import { Question } from './entity/question.entity';
 import { SurveyResponse } from './entity/surveyResponse.entity';
 import { Survey } from './entity/survey.entity';
 import { User } from 'src/user/entity/user.entity';
+import { SurveyCfaController } from './survey-cfa.controller';
+import { SurveyCfaService } from './survey-cfa.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Answer, Question, SurveyResponse, Survey, User]),
   ],
-  controllers: [SurveyController],
-  providers: [SurveyService],
+  controllers: [SurveyController, SurveyCfaController],
+  providers: [SurveyService, SurveyCfaService],
 })
 export class SurveyModule {}
