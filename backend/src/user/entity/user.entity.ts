@@ -4,10 +4,12 @@ import {
   BeforeInsert,
   Column,
   CreateDateColumn,
+  Index,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
+@Index(['email'], { unique: true })
 export class User {
   @PrimaryGeneratedColumn('uuid')
   id: string;
